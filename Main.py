@@ -1,78 +1,46 @@
+"""
+Particle Image Velocimetry (PIV) analysis script.
+
+This script performs displacement analysis on a sequence of grayscale images using normalized cross-correlation.
+It calculates sub-pixel accurate displacements between consecutive frames, generating gradient magnitude values.
+
+Author: Jon Errasti Odriozola
+Date: September 2021
+Last modified: August 2023
+"""
+
+# Import necessary libraries
 import numpy as np
 import math
+import cv2 as cv2
 import tkinter as tk
 from tkinter import filedialog as fd
-from normxcorr2 import normxcorr2
-import cv2 as cv2
-from data_validation import st_dev_check
-from Subpixel_fit import gaussian_fit, parabolic_fit
-from Imagenes_sinteticas import flujo_poiseuille, flujo_couette,desplazamiento_horizontal
 
 import matplotlib as mpl
 mpl.rcParams['axes.prop_cycle'] = mpl.cycler(color=['k'])
 import matplotlib.pyplot as plt
 
-A = 1024
-n = np.int64(0.05*(A**2))
-dt= 1 #Diametro de la partícula
-q=255
-sigma=1/8.*(dt**2)
-delta_z0=3
-delta_z=1
-H =int(30/100)
-if delta_z<delta_z0:
-    I0=q
-else:
-    I0=0
-    
-print("1. Crear imágenes sintéticas")
-print("2. Analizar imágenes")
-
-numero =np.int32(input())
-
-if numero < 2:
-    print("Seleccione un campo de velocidades")
-    print("1.Flujo de Poiseuille")
-    print("2.Flujo de Couette")
-    print("3.Desplazamiento horizontal")
-    numero2 = np.int32(input())
-    if 0<numero2<2:
-        ## Campo de velocidades
-        H = 30/100 # diámetro del tubo en ms
-        I = flujo_poiseuille(A, n, H, dt, I0)
-        
-    if 1<numero2<3:
-        ## Campo de velocidades
-        H = 30/100 # diámetro del tubo en ms
-        U = 10
-        [I1,I2] = flujo_couette(A, n, H, dt, I0, U)
-        
-    if 2<numero2<4:
-       I = desplazamiento_horizontal(A, n, dt, I0)
-
-else:
-        root = tk.Tk()
-        filez = np.array(fd.askopenfilenames(parent=root,title='Choose a file'))
-        I = []
-        for i in filez:
-            I.append(cv2.imread(i,0))
+from normxcorr2 import normxcorr2
+from data_validation import st_dev_check
+from Subpixel_fit import gaussian_fit, parabolic_fit
 
 
-if numero <2:
-    num_imagenes = 2
-else:
-    num_imagenes = len(I)
+# Define and read grayscale images.
+#root = tk.Tk()
+#filez = np.array(fd.askopenfilenames(parent=root,title='Choose a file'))
+filez = ['/mnt/c/Users/Jon/Downloads/025-1ms/025-1ms/025-1ms_00000600.tif', '/mnt/c/Users/Jon/Downloads/025-1ms/025-1ms/025-1ms_00000601.tif']
+I = []
+for i in filez:
+    I.append(cv2.imread(i,0)/255) #Divided by 255 for normalization purposes. Will improve performance.
+
+I = np.asarray(I)
 
 #Window size
-print("Introduzca el tamaño de las ventanas de interrogación")
-w_width =np.int8(input())
+w_width =64
 w_height = w_width
 
-print("Indique el estimador sub píxel que desee utilizar")
-print("1. Ajuste de Gauss con tres puntos")
-print("2. Ajuste parabólico")
-sbpx_method =np.int8(input())
-for i in range (num_imagenes-1):
+sbpx_method = 1 # Subpixel fix method: 1 for Gaussian, 2 for parabolic fit
+for i in range (I.shape[0]-1):
     I1 = I[i]
     I2 = I[i+1]
     
@@ -80,22 +48,19 @@ for i in range (num_imagenes-1):
     ymax = I1.shape[1]
 
     
-    #Centre of grid points
+    # Define grid points for windows
     x_min = w_width/2.
     y_min = w_height/2.
     xgrid = np.arange(x_min,xmax-w_width/2.,w_width/2.)
     ygrid = np.arange(y_min,(ymax-w_height), w_height/2.)
     
-    #Number of windwos
-    x_count = xgrid.shape[0]
-    y_count = ygrid.shape[0]
+    x_count = xgrid.shape[0] # Number of windows in x-direction
+    y_count = ygrid.shape[0] # Number of windows in y-direction
     
-    #Ranges of search zones
-    x_disp_max = np.int8(w_width/2.)
-    y_disp_max = np.int8(w_height/2.)
+    x_disp_max = np.int8(w_width/2.) # Maximum x-displacement within a window
+    y_disp_max = np.int8(w_height/2.) # Maximum y-displacement within a window
     
-    #Hay que crear las ventanas de interrogación y búsqueda
-    test_ima = np.zeros([w_width,w_height])
+    test_ima = np.zeros([w_width,w_height]) # Placeholder for a test image
     test_imb = np.zeros([w_width+2*x_disp_max,w_height+2*y_disp_max])
     dpx = np.zeros([x_count,y_count])
     dpy = np.zeros([x_count,y_count])
@@ -139,33 +104,18 @@ for i in range (num_imagenes-1):
       
     [dpx2,dpy2,G2] = [np.float32(dpx2), np.float32(dpy2), np.float32(G2)]
     
-    dpx_smooth = cv2.medianBlur(dpx2,3)
-    dpy_smooth = cv2.medianBlur(dpy2,3)
-    G_smooth = cv2.medianBlur(G2,3)
-    
-    theta = np.zeros([dpx.shape[0],dpx.shape[1]])
-    for i in range (0,dpx.shape[0]):
-        for j in range(0,dpx.shape[1]):
-            theta[i,j] = np.arctan(-dpx_smooth[i,j]/dpy_smooth[i,j])*180/np.pi
-            
-    theta = np.nan_to_num(theta)
-    theta = np.float32(theta)
-    theta = cv2.medianBlur(theta,3)
-    
-    #Cambio de pixel/frame a m/s
-   # pixel = (54*10**(-3))/(1830-175)
-   # dpx_smooth = dpx_smooth*pixel*1000
-   # dpy_smooth = dpy_smooth*pixel*1000
-   # G_smooth = G_smooth*pixel*1000
+    dpx_smooth = dpx #cv2.medianBlur(dpx2,3)
+    dpy_smooth = dpy#cv2.medianBlur(dpy2,3)
+    G_smooth = G #cv2.medianBlur(G2,3)
     
     #Dibuja cosas
     plt.figure()
-    plt.quiver(-dpx_smooth, dpy_smooth, color = 'Green')
+    plt.quiver(dpy_smooth, -dpx_smooth, color = 'Green')
     plt.title("Campo de velocidades")
     #plt.savefig('Imagenes/Solución_final.eps', format='eps')
         
     plt.figure()
-    plt.plot(dpy_smooth,-dpx_smooth,'.', color = 'black')
+    plt.plot(dpy_smooth,dpx_smooth,'.', color = 'black')
     plt.xlabel("Desplazamientos en X (píxel/frame)")
     plt.ylabel("Desplazamientos en Y (píxel/frame)")
    # plt.savefig('Imagenes/MapaUV.eps', format='eps')
@@ -174,10 +124,10 @@ for i in range (num_imagenes-1):
     plt.imshow(dpy_smooth, interpolation = 'bilinear')#,extent = [-4.5,3.9,0,6.3])
     plt.colorbar()
     plt.title("Desplazamientos según el eje X (píxel/frame)")
-    plt.savefig('Imagenes 64/MapaCalorU.eps', format='eps')
+    #plt.savefig('Imagenes 64/MapaCalorU.eps', format='eps')
     
     plt.figure()
-    plt.imshow(-dpx_smooth, interpolation = 'bilinear')#,extent = [-4.5,3.9,0,6.3])
+    plt.imshow(dpx_smooth, interpolation = 'bilinear')#,extent = [-4.5,3.9,0,6.3])
     plt.colorbar()
     plt.title("Desplazamientos según el eje y")
    # plt.savefig('Imagenes/MapaCalorV.eps', format='eps')
@@ -187,12 +137,6 @@ for i in range (num_imagenes-1):
     plt.colorbar()
     plt.title("Módulo de la velocidad")
    # plt.savefig('Imagenes/MapaCalorMódulo.eps', format='eps')
-    
-    plt.figure()
-    plt.imshow(theta, interpolation = 'bilinear')#,extent = [-4.5,3.9,0,6.3])
-    plt.title("Ángulo que forma el vector con la vertical")
-    plt.colorbar()
-    #plt.savefig('Imagenes/MapaCalorTheta.eps', format='eps')
     
     plt.figure()
     plt.hist(dpy_smooth, histtype = 'stepfilled',bins = 100)
@@ -219,5 +163,6 @@ for i in range (num_imagenes-1):
     plt.title("Componente U de la velocidad a lo largo del eje X")
     plt.xlabel("Posición en X")
     plt.ylabel("Valor de U (pixel/frame)")
-    plt.savefig("Imagenes 64/ValorU.eps", format ='eps')
+    plt.show()
+    #plt.savefig("Imagenes 64/ValorU.eps", format ='eps')
     

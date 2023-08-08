@@ -20,9 +20,9 @@ import matplotlib as mpl
 mpl.rcParams['axes.prop_cycle'] = mpl.cycler(color=['k'])
 import matplotlib.pyplot as plt
 
-from normxcorr2 import normxcorr2
-from data_validation import st_dev_check
-from Subpixel_fit import gaussian_fit, parabolic_fit
+from src.normxcorr2 import normxcorr2
+from src.data_validation import st_dev_check
+from src.Subpixel_fit import gaussian_fit, parabolic_fit
 
 
 def load_images(file_paths):
@@ -240,15 +240,13 @@ def plot_results(dpx_smooth, dpy_smooth, G_smooth):
     #plt.savefig("Imagenes 64/ValorU.eps", format ='eps')
 
 
-
-
 def main():
     """
     Main function to load images, compute displacements, and perform further analysis.
 
     This function serves as the entry point for the script's execution.
     """
-    # root = tk.Tk()  # GUI library code that seems to be commented out
+    # root = tk.Tk()  
     filez = ['/mnt/c/Users/Jon/Downloads/025-1ms/025-1ms/025-1ms_00000600.tif', '/mnt/c/Users/Jon/Downloads/025-1ms/025-1ms/025-1ms_00000601.tif']
     
     # Load grayscale images

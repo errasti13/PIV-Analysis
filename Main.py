@@ -42,7 +42,7 @@ def load_images(file_paths):
 
     return np.asarray(images)
 
-def compute_displacement(image_sequence, window_size=64, sbpx_method=1):
+def compute_displacement(image_sequence, window_size=64, sbpx_method=2):
     """
     Compute sub-pixel accurate displacements between consecutive images in a sequence.
 

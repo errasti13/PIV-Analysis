@@ -119,62 +119,69 @@ def compute_displacement(image_sequence, window_size=64, sbpx_method=1):
 
         return dpx, dpy, G
     
+def svd_reconstruction(dpx, dpy, G):
+    [dpx,dpy,G] = [np.nan_to_num(dpx),np.nan_to_num(dpy),np.nan_to_num(G)]
+    
+    [dpx2,dpy2,G2] = st_dev_check(dpx,dpy,G,5,5,5)
+      
+    [dpx2,dpy2,G2] = [np.float32(dpx2), np.float32(dpy2), np.float32(G2)]
+    
 def plot_results(dpx_smooth, dpy_smooth, G_smooth):
         #Dibuja cosas
     plt.figure()
     plt.quiver(dpy_smooth, -dpx_smooth, color = 'Green')
-    plt.title("Campo de velocidades")
+    plt.title("Velocity vector field")
     #plt.savefig('Imagenes/Solución_final.eps', format='eps')
         
     plt.figure()
     plt.plot(dpy_smooth,dpx_smooth,'.', color = 'black')
-    plt.xlabel("Desplazamientos en X (píxel/frame)")
-    plt.ylabel("Desplazamientos en Y (píxel/frame)")
+    plt.xlabel("X displacements (pixel/frame)")
+    plt.ylabel("Y displacements (pixel/frame)")
    # plt.savefig('Imagenes/MapaUV.eps', format='eps')
     
     plt.figure()
     plt.imshow(dpy_smooth, interpolation = 'bilinear')#,extent = [-4.5,3.9,0,6.3])
     plt.colorbar()
-    plt.title("Desplazamientos según el eje X (píxel/frame)")
+    plt.title("X displacements (pixel/frame)")
     #plt.savefig('Imagenes 64/MapaCalorU.eps', format='eps')
     
     plt.figure()
     plt.imshow(dpx_smooth, interpolation = 'bilinear')#,extent = [-4.5,3.9,0,6.3])
     plt.colorbar()
-    plt.title("Desplazamientos según el eje y")
+    plt.title("Y displacements")
    # plt.savefig('Imagenes/MapaCalorV.eps', format='eps')
     
     plt.figure()
     plt.imshow(G_smooth,interpolation = 'bilinear')#,extent = [-4.5,3.9,0,6.3])
     plt.colorbar()
-    plt.title("Módulo de la velocidad")
+    plt.title("Velocity magnitude")
    # plt.savefig('Imagenes/MapaCalorMódulo.eps', format='eps')
     
     plt.figure()
     plt.hist(dpy_smooth, histtype = 'stepfilled',bins = 100)
-    plt.xlabel("Valor del desplazamiento en el eje X")
-    plt.ylabel("Frecuencia")
+    plt.xlabel("X velocity value")
+    plt.ylabel("Frequency")
     #plt.savefig('Imagenes/HistogramaU.eps', format='eps')
     
     
     plt.figure()
     plt.hist(dpx_smooth, histtype = 'stepfilled',bins = 100)
-    plt.xlabel("Valor del desplazamiento en el eje Y")
-    plt.ylabel("Frecuencia")
+    plt.xlabel("Y velicity value")
+    plt.ylabel("Frequency")
    # plt.savefig('Imagenes/HistogramaV.eps', format='eps')
     
     plt.figure()
     plt.hist(G_smooth, histtype = 'stepfilled',bins = 100)
-    plt.xlabel("Módulo del desplazamiento")
-    plt.ylabel("Frecuencia")
+    plt.xlabel("Velocity magnitude")
+    plt.ylabel("Frequency")
    # plt.savefig('Imagenes/HistogramaG.eps', format='eps')
    
     plt.figure()
     #x_values = np.linspace(-4.5,3.9,157)
     plt.plot(dpy_smooth[30,:])
-    plt.title("Componente U de la velocidad a lo largo del eje X")
-    plt.xlabel("Posición en X")
-    plt.ylabel("Valor de U (pixel/frame)")
+    plt.title("X velocity fluctuation")
+    plt.xlabel("X Position")
+    plt.ylabel("U velocity(pixel/frame)")
     plt.show()
     #plt.savefig("Imagenes 64/ValorU.eps", format ='eps')
 
@@ -192,12 +199,6 @@ def main():
     
     # Compute displacements
     [dpx, dpy, G] = compute_displacement(image_sequence)
-       
-    [dpx,dpy,G] = [np.nan_to_num(dpx),np.nan_to_num(dpy),np.nan_to_num(G)]
-    
-    [dpx2,dpy2,G2] = st_dev_check(dpx,dpy,G,5,5,5)
-      
-    [dpx2,dpy2,G2] = [np.float32(dpx2), np.float32(dpy2), np.float32(G2)]
     
     dpx_smooth = dpx #cv2.medianBlur(dpx2,3)
     dpy_smooth = dpy#cv2.medianBlur(dpy2,3)

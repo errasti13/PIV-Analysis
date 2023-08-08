@@ -119,17 +119,71 @@ def compute_displacement(image_sequence, window_size=64, sbpx_method=1):
 
         return dpx, dpy, G
     
-def svd_reconstruction(dpx, dpy, G):
-    [dpx,dpy,G] = [np.nan_to_num(dpx),np.nan_to_num(dpy),np.nan_to_num(G)]
+def svd_reconstruction(dpx, dpy, G, m):
+
+    """
+    Perform Singular Value Decomposition (SVD) based reconstruction and smoothing on input arrays.
+
+    Args:
+        dpx (numpy.ndarray): Array of x-displacements.
+        dpy (numpy.ndarray): Array of y-displacements.
+        G (numpy.ndarray): Array of velocity magnitudes.
+        m (int): Number of singular values to consider for smoothing.
+
+    Returns:
+        numpy.ndarray: Smoothed and reconstructed arrays of x-displacements, y-displacements, and velocity magnitudes.
+    """
+    # Check and mask values based on standard deviation
+    [dpx, dpy, G] = st_dev_check(dpx, dpy, G, 3, 3, 3)
     
-    [dpx2,dpy2,G2] = st_dev_check(dpx,dpy,G,5,5,5)
-      
-    [dpx2,dpy2,G2] = [np.float32(dpx2), np.float32(dpy2), np.float32(G2)]
-    
+    # Convert arrays to float32 data type
+    dpx = np.float32(dpx)
+    dpy = np.float32(dpy)
+    G = np.float32(G)
+
+    # Replace NaNs with means
+    dpx = np.nan_to_num(dpx, nan=np.nanmean(dpx))
+    dpy = np.nan_to_num(dpy, nan=np.nanmean(dpy))
+    G = np.nan_to_num(G, nan=np.nanmean(G))
+
+    # Perform Singular Value Decomposition (SVD)
+    u_dpx, s_dpx, vt_dpx = np.linalg.svd(dpx, full_matrices = False)
+    u_dpy, s_dpy, vt_dpy = np.linalg.svd(dpy, full_matrices = False)
+    u_G, s_G, vt_G = np.linalg.svd(G, full_matrices = False)
+
+    dpx_smooth = np.zeros(dpx.shape)
+    dpy_smooth = np.zeros(dpy.shape)
+    G_smooth = np.zeros(G.shape)
+
+
+    # Smooth all arrays using a single loop
+    for i in range(m):
+        dpx_smooth += s_dpx[i] * np.outer(u_dpx[:, i], vt_dpx[i, :])
+        dpy_smooth += s_dpy[i] * np.outer(u_dpy[:, i], vt_dpy[i, :])
+        G_smooth += s_G[i] * np.outer(u_G[:, i], vt_G[i, :])
+
+    return dpx_smooth, dpy_smooth, G_smooth
+
+
 def plot_results(dpx_smooth, dpy_smooth, G_smooth):
-        #Dibuja cosas
+
+    """
+    Generate a series of plots and visualizations to analyze PIV (Particle Image Velocimetry) results.
+
+    This function takes in smoothed displacement data and generates several types of plots and visualizations
+    to provide insights into the velocity vector field, displacement magnitudes, and distribution statistics.
+
+    Args:
+        dpx_smooth (numpy.ndarray): Smoothed y-component of displacements.
+        dpy_smooth (numpy.ndarray): Smoothed x-component of displacements.
+        G_smooth (numpy.ndarray): Smoothed magnitude of displacements (velocity magnitudes).
+
+    Returns:
+        None (Plots are generated using Matplotlib).
+    """
+
     plt.figure()
-    plt.quiver(dpy_smooth, -dpx_smooth, color = 'Green')
+    plt.quiver(dpy_smooth, -dpx_smooth, color='lime')
     plt.title("Velocity vector field")
     #plt.savefig('Imagenes/Solución_final.eps', format='eps')
         
@@ -140,19 +194,19 @@ def plot_results(dpx_smooth, dpy_smooth, G_smooth):
    # plt.savefig('Imagenes/MapaUV.eps', format='eps')
     
     plt.figure()
-    plt.imshow(dpy_smooth, interpolation = 'bilinear')#,extent = [-4.5,3.9,0,6.3])
+    plt.imshow(dpy_smooth, interpolation = 'bicubic')#,extent = [-4.5,3.9,0,6.3])
     plt.colorbar()
     plt.title("X displacements (pixel/frame)")
     #plt.savefig('Imagenes 64/MapaCalorU.eps', format='eps')
     
     plt.figure()
-    plt.imshow(dpx_smooth, interpolation = 'bilinear')#,extent = [-4.5,3.9,0,6.3])
+    plt.imshow(dpx_smooth, interpolation = 'bicubic')#,extent = [-4.5,3.9,0,6.3])
     plt.colorbar()
     plt.title("Y displacements")
    # plt.savefig('Imagenes/MapaCalorV.eps', format='eps')
     
     plt.figure()
-    plt.imshow(G_smooth,interpolation = 'bilinear')#,extent = [-4.5,3.9,0,6.3])
+    plt.imshow(G_smooth,interpolation = 'bicubic')#,extent = [-4.5,3.9,0,6.3])
     plt.colorbar()
     plt.title("Velocity magnitude")
    # plt.savefig('Imagenes/MapaCalorMódulo.eps', format='eps')
@@ -200,9 +254,8 @@ def main():
     # Compute displacements
     [dpx, dpy, G] = compute_displacement(image_sequence)
     
-    dpx_smooth = dpx #cv2.medianBlur(dpx2,3)
-    dpy_smooth = dpy#cv2.medianBlur(dpy2,3)
-    G_smooth = G #cv2.medianBlur(G2,3)
+    m = 18
+    dpx_smooth, dpy_smooth, G_smooth = svd_reconstruction(dpx,dpy,G,m)
 
     plot_results(dpx_smooth, dpy_smooth, G_smooth)
     

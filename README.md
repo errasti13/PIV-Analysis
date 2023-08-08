@@ -18,11 +18,11 @@ Three point Gaussian fit and parabolic fit have been implemented for sub pixel a
    cd PIV-Analysis
 
 2. Prerequisites
-
+   ```bash
    pip install opencv-python numpy matplotlib
 
 3. Run the PIV Script
-   '''bash
+   ```bash
      python ./Main.py
 
 4. Change the path to analyzed images in function main() in Main.py. More than two images can be analyzed in serial.

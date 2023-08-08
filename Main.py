@@ -14,7 +14,7 @@ import numpy as np
 import math
 import cv2 as cv2
 import tkinter as tk
-from tkinter import filedialog as fd
+from tkinter import filedialog
 
 import matplotlib as mpl
 mpl.rcParams['axes.prop_cycle'] = mpl.cycler(color=['k'])
@@ -119,7 +119,7 @@ def compute_displacement(image_sequence, window_size=64, sbpx_method=2):
 
         return dpx, dpy, G
     
-def svd_reconstruction(dpx, dpy, G, m):
+def svd_reconstruction(dpx, dpy, G, m = 10):
 
     """
     Perform Singular Value Decomposition (SVD) based reconstruction and smoothing on input arrays.
@@ -239,6 +239,9 @@ def plot_results(dpx_smooth, dpy_smooth, G_smooth):
     plt.show()
     #plt.savefig("Imagenes 64/ValorU.eps", format ='eps')
 
+
+
+
 def main():
     """
     Main function to load images, compute displacements, and perform further analysis.
@@ -252,15 +255,16 @@ def main():
     image_sequence = load_images(filez)
     
     # Compute displacements
-    [dpx, dpy, G] = compute_displacement(image_sequence)
+    dpx, dpy, G = compute_displacement(image_sequence)
     
-    m = 18
-    dpx_smooth, dpy_smooth, G_smooth = svd_reconstruction(dpx,dpy,G,m)
+    #Smooth 
+    m = 18 #Number of modes in SVD reconstruction
+    dpx_smooth, dpy_smooth, G_smooth = svd_reconstruction(dpx, dpy, G, m)
 
     plot_results(dpx_smooth, dpy_smooth, G_smooth)
-    
 
 
 if __name__ == "__main__":
     main()
+
     

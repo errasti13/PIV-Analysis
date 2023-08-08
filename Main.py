@@ -25,90 +25,102 @@ from data_validation import st_dev_check
 from Subpixel_fit import gaussian_fit, parabolic_fit
 
 
-# Define and read grayscale images.
-#root = tk.Tk()
-#filez = np.array(fd.askopenfilenames(parent=root,title='Choose a file'))
-filez = ['/mnt/c/Users/Jon/Downloads/025-1ms/025-1ms/025-1ms_00000600.tif', '/mnt/c/Users/Jon/Downloads/025-1ms/025-1ms/025-1ms_00000601.tif']
-I = []
-for i in filez:
-    I.append(cv2.imread(i,0)/255) #Divided by 255 for normalization purposes. Will improve performance.
+def load_images(file_paths):
+    """
+    Load and normalize grayscale images from the specified file paths.
 
-I = np.asarray(I)
+    Args:
+        file_paths (list): List of paths to image files.
 
-#Window size
-w_width =64
-w_height = w_width
+    Returns:
+        numpy.ndarray: Array containing loaded and normalized images.
+    """
+    images = []
+    for path in file_paths:
+        image = cv2.imread(path, 0) / 255
+        images.append(image)
 
-sbpx_method = 1 # Subpixel fix method: 1 for Gaussian, 2 for parabolic fit
-for i in range (I.shape[0]-1):
-    I1 = I[i]
-    I2 = I[i+1]
-    
-    xmax = I1.shape[0]
-    ymax = I1.shape[1]
+    return np.asarray(images)
 
-    
-    # Define grid points for windows
-    x_min = w_width/2.
-    y_min = w_height/2.
-    xgrid = np.arange(x_min,xmax-w_width/2.,w_width/2.)
-    ygrid = np.arange(y_min,(ymax-w_height), w_height/2.)
-    
-    x_count = xgrid.shape[0] # Number of windows in x-direction
-    y_count = ygrid.shape[0] # Number of windows in y-direction
-    
-    x_disp_max = np.int8(w_width/2.) # Maximum x-displacement within a window
-    y_disp_max = np.int8(w_height/2.) # Maximum y-displacement within a window
-    
-    test_ima = np.zeros([w_width,w_height]) # Placeholder for a test image
-    test_imb = np.zeros([w_width+2*x_disp_max,w_height+2*y_disp_max])
-    dpx = np.zeros([x_count,y_count])
-    dpy = np.zeros([x_count,y_count])
-    xpeak = 0
-    ypeak = 0
-    xpeak1 = 0
-    ypeak1 = 0
-    xpeak_sbpx = 0
-    ypeak_sbpx = 0
+def compute_displacement(image_sequence, window_size=64, sbpx_method=1):
+    """
+    Compute sub-pixel accurate displacements between consecutive images in a sequence.
 
-    G = np.zeros([x_count,y_count])
-    for i in range (1,x_count,1):
-        for j in range (1,y_count,1):
-            max_correlation = 0
-            test_xmin = np.int32(xgrid[i]-w_width/2.)
-            test_xmax = np.int32(xgrid[i]+w_width/2.)
-            test_ymin = np.int32(ygrid[j]-w_height/2.)
-            test_ymax = np.int32(ygrid[j]+w_height/2.)
-            x_disp = 0
-            y_disp = 0 
-            test_ima = I1[test_xmin:test_xmax,test_ymin:test_ymax]
-            test_imb = I2[(test_xmin-x_disp_max):(test_xmax+x_disp_max),(test_ymin-y_disp_max):(test_ymax+y_disp_max)]
-            c = normxcorr2(test_ima,test_imb)
-            xpeak,ypeak = np.unravel_index(c.argmax(),c.shape)
-             
-            #Utilizamos estimadores sub píxel para mayor precisión
-            if sbpx_method<2:
-                [xpeak_sbpx,ypeak_sbpx] = gaussian_fit(xpeak,ypeak,c)
-            else:
-                [xpeak_sbpx,ypeak_sbpx] = parabolic_fit(xpeak,ypeak,c)
-            
-            xpeak1 = test_xmin + xpeak_sbpx - w_width/2. - x_disp_max
-            ypeak1 = test_ymin + ypeak_sbpx - w_height/2. - y_disp_max
-            dpx[i,j] = xpeak1 - xgrid[i]
-            dpy[i,j] = ypeak1 - ygrid[j]
-            G[i,j] = math.sqrt((dpx[i,j])**2+(dpy[i,j])**2)
-       
-    [dpx,dpy,G] = [np.nan_to_num(dpx),np.nan_to_num(dpy),np.nan_to_num(G)]
+    Args:
+        image_sequence (numpy.ndarray): Array of grayscale images.
+        window_size (int): Size of the correlation window.
+        sbpx_method (int): Subpixel adjustment method (1 for Gaussian, 2 for parabolic).
+
+    Returns:
+        numpy.ndarray: Array of calculated displacements between images.
+    """
+    displacements = []
+
+    w_width =window_size
+    w_height = w_width
+
+    for i in range(image_sequence.shape[0] - 1):
+        I1 = image_sequence[i]
+        I2 = image_sequence[i + 1]
+        
+        xmax = I1.shape[0]
+        ymax = I1.shape[1]
+
+        
+        # Define grid points for windows
+        x_min = w_width/2.
+        y_min = w_height/2.
+        xgrid = np.arange(x_min,xmax-w_width/2.,w_width/2.)
+        ygrid = np.arange(y_min,(ymax-w_height), w_height/2.)
+        
+        x_count = xgrid.shape[0] # Number of windows in x-direction
+        y_count = ygrid.shape[0] # Number of windows in y-direction
+        
+        x_disp_max = np.int8(w_width/2.) # Maximum x-displacement within a window
+        y_disp_max = np.int8(w_height/2.) # Maximum y-displacement within a window
+        
+        test_ima = np.zeros([w_width,w_height]) # Placeholder for a test image
+        test_imb = np.zeros([w_width+2*x_disp_max,w_height+2*y_disp_max])
+        dpx = np.zeros([x_count,y_count])
+        dpy = np.zeros([x_count,y_count])
+        xpeak = 0
+        ypeak = 0
+        xpeak1 = 0
+        ypeak1 = 0
+        xpeak_sbpx = 0
+        ypeak_sbpx = 0
+
+        G = np.zeros([x_count,y_count])
+        for i in range (1,x_count,1):
+            for j in range (1,y_count,1):
+                max_correlation = 0
+                test_xmin = np.int32(xgrid[i]-w_width/2.)
+                test_xmax = np.int32(xgrid[i]+w_width/2.)
+                test_ymin = np.int32(ygrid[j]-w_height/2.)
+                test_ymax = np.int32(ygrid[j]+w_height/2.)
+                x_disp = 0
+                y_disp = 0 
+                test_ima = I1[test_xmin:test_xmax,test_ymin:test_ymax]
+                test_imb = I2[(test_xmin-x_disp_max):(test_xmax+x_disp_max),(test_ymin-y_disp_max):(test_ymax+y_disp_max)]
+                c = normxcorr2(test_ima,test_imb)
+                xpeak,ypeak = np.unravel_index(c.argmax(),c.shape)
+                
+                #Utilizamos estimadores sub píxel para mayor precisión
+                if sbpx_method<2:
+                    [xpeak_sbpx,ypeak_sbpx] = gaussian_fit(xpeak,ypeak,c)
+                else:
+                    [xpeak_sbpx,ypeak_sbpx] = parabolic_fit(xpeak,ypeak,c)
+                
+                xpeak1 = test_xmin + xpeak_sbpx - w_width/2. - x_disp_max
+                ypeak1 = test_ymin + ypeak_sbpx - w_height/2. - y_disp_max
+                dpx[i,j] = xpeak1 - xgrid[i]
+                dpy[i,j] = ypeak1 - ygrid[j]
+                G[i,j] = math.sqrt((dpx[i,j])**2+(dpy[i,j])**2)
+
+        return dpx, dpy, G
     
-    [dpx2,dpy2,G2] = st_dev_check(dpx,dpy,G,5,5,5)
-      
-    [dpx2,dpy2,G2] = [np.float32(dpx2), np.float32(dpy2), np.float32(G2)]
-    
-    dpx_smooth = dpx #cv2.medianBlur(dpx2,3)
-    dpy_smooth = dpy#cv2.medianBlur(dpy2,3)
-    G_smooth = G #cv2.medianBlur(G2,3)
-    
-    #Dibuja cosas
+def plot_results(dpx_smooth, dpy_smooth, G_smooth):
+        #Dibuja cosas
     plt.figure()
     plt.quiver(dpy_smooth, -dpx_smooth, color = 'Green')
     plt.title("Campo de velocidades")
@@ -165,4 +177,36 @@ for i in range (I.shape[0]-1):
     plt.ylabel("Valor de U (pixel/frame)")
     plt.show()
     #plt.savefig("Imagenes 64/ValorU.eps", format ='eps')
+
+def main():
+    """
+    Main function to load images, compute displacements, and perform further analysis.
+
+    This function serves as the entry point for the script's execution.
+    """
+    # root = tk.Tk()  # GUI library code that seems to be commented out
+    filez = ['/mnt/c/Users/Jon/Downloads/025-1ms/025-1ms/025-1ms_00000600.tif', '/mnt/c/Users/Jon/Downloads/025-1ms/025-1ms/025-1ms_00000601.tif']
+    
+    # Load grayscale images
+    image_sequence = load_images(filez)
+    
+    # Compute displacements
+    [dpx, dpy, G] = compute_displacement(image_sequence)
+       
+    [dpx,dpy,G] = [np.nan_to_num(dpx),np.nan_to_num(dpy),np.nan_to_num(G)]
+    
+    [dpx2,dpy2,G2] = st_dev_check(dpx,dpy,G,5,5,5)
+      
+    [dpx2,dpy2,G2] = [np.float32(dpx2), np.float32(dpy2), np.float32(G2)]
+    
+    dpx_smooth = dpx #cv2.medianBlur(dpx2,3)
+    dpy_smooth = dpy#cv2.medianBlur(dpy2,3)
+    G_smooth = G #cv2.medianBlur(G2,3)
+
+    plot_results(dpx_smooth, dpy_smooth, G_smooth)
+    
+
+
+if __name__ == "__main__":
+    main()
     

@@ -13,12 +13,12 @@ Three point Gaussian fit and parabolic fit have been implemented for sub pixel a
 ## Usage
 
 1. Clone the repository:
-
-   git clone https://github.com/your-username/piv-analysis.git
-   cd piv-analysis
+   ```bash
+   git clone https://github.com/your-username/piv-analysis.git](https://github.com/errasti13/PIV-Analysis.git
+   cd PIV-Analysis
 
 2. Prerequisites
-   ```bash
+
    pip install opencv-python numpy matplotlib
 
 3. Run the PIV Script
